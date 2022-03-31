@@ -8,24 +8,10 @@ ARG VARIANT
 # Install necessary packages available from standard repos
 RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
-        software-properties-common wget apt-utils file zip \
+        software-properties-common wget sudo apt-utils file zip \
         openssh-client gpg-agent socat rsync \
         make ninja-build git \
         python3 python3-pip
-
-# Install conan
-RUN python3 -m pip install --upgrade pip setuptools && \
-    python3 -m pip install conan && \
-    conan --version
-
-# By default, anything you run in Docker is done as superuser.
-# Conan runs some install commands as superuser, and will prepend `sudo` to
-# these commands, unless `CONAN_SYSREQUIRES_SUDO=0` is in your env variables.
-ENV CONAN_SYSREQUIRES_SUDO 0
-# Some packages request that Conan use the system package manager to install
-# a few dependencies. This flag allows Conan to proceed with these installations;
-# leaving this flag undefined can cause some installation failures.
-ENV CONAN_SYSREQUIRES_MODE enabled
 
 # User-settable versions:
 # This Dockerfile should support gcc-[7, 8, 9, 10, 11] and clang-[10, 11, 12, 13]
@@ -112,6 +98,26 @@ ENV CXX=${USE_CLANG:+"clang++"}
 # if CC is null, set it to 'gcc' (or leave as is otherwise).
 ENV CC=${CC:-"gcc"}
 ENV CXX=${CXX:-"g++"}
+
+ARG UID=1000
+RUN useradd -m -u ${UID} -s /bin/bash builder
+USER builder
+ENV PATH="/home/builder/.local/bin:${PATH}"
+
+# Install conan
+RUN python3 -m pip install --upgrade pip setuptools && \
+    python3 -m pip install conan && \
+    conan --version
+
+# By default, anything you run in Docker is done as superuser.
+# Conan runs some install commands as superuser, and will prepend `sudo` to
+# these commands, unless `CONAN_SYSREQUIRES_SUDO=0` is in your env variables.
+ENV CONAN_SYSREQUIRES_SUDO 1
+# Some packages request that Conan use the system package manager to install
+# a few dependencies. This flag allows Conan to proceed with these installations;
+# leaving this flag undefined can cause some installation failures.
+ENV CONAN_SYSREQUIRES_MODE enabled
+
 
 # Include project
 #ADD . /workspaces/cpp_starter_project
